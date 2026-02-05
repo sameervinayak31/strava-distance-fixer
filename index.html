@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Fix incorrect Strava activity distances in your FIT files. Fast, free, and completely private.">
+    <meta name="theme-color" content="#0a0e27">
+    <title>Strava Distance Fixer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #151b3d;
+            --accent-orange: #fc5200;
+            --accent-teal: #00d9c0;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --border-color: #1e293b;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(252, 82, 0, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 217, 192, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-orange);
+            background: rgba(252, 82, 0, 0.05);
+        }
+
+        .upload-zone.drag-over {
+            border-color: var(--accent-teal);
+            background: rgba(0, 217, 192, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .form-section {
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        .file-info {
+            background: rgba(252, 82, 0, 0.1);
+            border: 1px solid rgba(252, 82, 0, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--accent-orange);
+        }
+
+        .preview-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            padding: 1.5rem;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+            color: var(--accent-teal);
+        }
+
+        .input-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.875rem 1rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: 'Space Mono', monospace;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-teal));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 1rem;
+            padding: 0.875rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: var(--success);
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--error);
+        }
+
+        .guide-toggle {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .guide-toggle:hover {
+            border-color: var(--accent-teal);
+            color: var(--text-primary);
+        }
+
+        .guide-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .guide-content.open {
+            max-height: 1200px;
+            margin-top: 1rem;
+        }
+
+        .guide-step {
+            background: var(--bg-primary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+
+        .guide-step h4 {
+            color: var(--accent-orange);
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .guide-step p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 1.75rem; }
+            .card { padding: 1.5rem; }
+            .preview-stats { grid-template-columns: repeat(2, 1fr); }
+            input[type="number"] { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Strava Distance Fixer</h1>
+            <p class="subtitle">Fix activity distances for running, cycling & indoor workouts</p>
+        </div>
+
+        <div class="card">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📂</div>
+                <div><strong>Drop your .FIT file here</strong></div>
+                <div style="color: var(--text-secondary); margin-top: 0.5rem;">or click to browse</div>
+                <input type="file" id="fileInput" accept=".fit">
+            </div>
+
+            <div class="form-section" id="formSection">
+                <div class="file-info" id="fileName"></div>
+
+                <div id="previewStats" style="display: none;">
+                    <div class="preview-stats">
+                        <div class="stat">
+                            <div class="stat-label">Distance</div>
+                            <div class="stat-value" id="previewDistance">--</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Duration</div>
+                            <div class="stat-value" id="previewDuration">--</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Avg Pace</div>
+                            <div class="stat-value" id="previewPace">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Current Distance (miles)</label>
+                    <input type="number" id="oldDistance" step="0.01" min="0" placeholder="2.27">
+                </div>
+
+                <div class="input-group">
+                    <label>Correct Distance (miles)</label>
+                    <input type="number" id="newDistance" step="0.01" min="0" placeholder="2.80">
+                </div>
+
+                <button class="btn" id="fixBtn">Fix Distance</button>
+                <div class="status" id="status"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <button class="guide-toggle" id="guideToggle">📖 How to Use This Tool (Click to Expand)</button>
+            <div class="guide-content" id="guideContent">
+                <div class="guide-step">
+                    <h4>1. Export from Strava</h4>
+                    <p><strong>On Phone:</strong> Open Strava.com in your phone's browser (Safari/Chrome), log in, find your activity, tap the wrench icon 🔧, then "Export Original"<br>
+                    <strong>On Computer:</strong> Strava.com → Activity → Wrench icon 🔧 → Export Original</p>
+                </div>
+                <div class="guide-step">
+                    <h4>2. Upload Here</h4>
+                    <p><strong>On Phone:</strong> The .FIT file saves to Downloads. Tap the upload box above, choose "Browse", go to Downloads folder<br>
+                    <strong>On Computer:</strong> Drag and drop the .FIT file or click to browse</p>
+                </div>
+                <div class="guide-step">
+                    <h4>3. Check the Preview</h4>
+                    <p>Verify the distance and duration match what Strava shows to confirm you have the right file.</p>
+                </div>
+                <div class="guide-step">
+                    <h4>4. Enter Distances</h4>
+                    <p><strong>Current:</strong> What Strava shows (e.g., 2.27)<br>
+                    <strong>Correct:</strong> What it should be (e.g., 2.80)</p>
+                </div>
+                <div class="guide-step">
+                    <h4>5. Fix & Download</h4>
+                    <p>Click "Fix Distance" and the corrected file will download automatically.</p>
+                </div>
+                <div class="guide-step">
+                    <h4>6. Upload to Strava</h4>
+                    <p><strong>IMPORTANT:</strong> First delete the original activity on Strava!<br>
+                    <strong>On Phone:</strong> Open Strava.com in browser (NOT the app), tap Upload button, select the fixed .FIT file from Downloads<br>
+                    <strong>On Computer:</strong> Strava.com → Upload → Select the fixed .FIT file</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Made with ❤️ for athletes • 100% private, nothing uploaded
+        </div>
+    </div>
+
+    <script>
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const formSection = document.getElementById('formSection');
+        const fileName = document.getElementById('fileName');
+        const oldDistanceInput = document.getElementById('oldDistance');
+        const newDistanceInput = document.getElementById('newDistance');
+        const fixBtn = document.getElementById('fixBtn');
+        const status = document.getElementById('status');
+        const guideToggle = document.getElementById('guideToggle');
+        const guideContent = document.getElementById('guideContent');
+        const previewStats = document.getElementById('previewStats');
+
+        let currentFile = null;
+
+        // Guide toggle
+        guideToggle.addEventListener('click', () => {
+            guideContent.classList.toggle('open');
+            guideToggle.textContent = guideContent.classList.contains('open') 
+                ? '📖 How to Use This Tool (Click to Collapse)'
+                : '📖 How to Use This Tool (Click to Expand)';
+        });
+
+        // Upload handlers
+        uploadZone.addEventListener('click', () => fileInput.click());
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-over');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        async function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.fit')) {
+                showStatus('Please select a .FIT file', 'error');
+                return;
+            }
+
+            currentFile = file;
+            fileName.textContent = '✓ ' + file.name;
+            formSection.classList.add('active');
+            hideStatus();
+
+            // Parse and show preview
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const stats = parseFitFile(arrayBuffer);
+                showPreview(stats);
+            } catch (error) {
+                console.error('Preview error:', error);
+            }
+        }
+
+        function parseFitFile(arrayBuffer) {
+            const data = new Uint8Array(arrayBuffer);
+            const view = new DataView(arrayBuffer);
+            const headerSize = data[0];
+            
+            // Find distance (stored as hectometers in most FIT files)
+            let distance = 0;
+            let duration = 0;
+            
+            // Search for likely session summary values
+            for (let i = headerSize; i < data.length - 1; i++) {
+                const hm = view.getUint16(i, true);
+                
+                // Hectometers: realistic run/ride is 1-1000 hm (0.06-62 miles)
+                if (hm >= 1 && hm <= 1000) {
+                    const miles = hm * 100 / 1609.344;
+                    if (miles >= 0.1 && miles <= 100) {
+                        distance = Math.max(distance, miles);
+                    }
+                }
+                
+                // Duration in seconds (look for realistic values)
+                const sec = view.getUint32(i, true);
+                if (sec >= 60 && sec <= 86400) { // 1 min to 24 hours
+                    if (sec / 60 >= 5 && sec / 60 <= 600) { // 5 min to 10 hours
+                        duration = Math.max(duration, sec / 60);
+                    }
+                }
+            }
+            
+            return {
+                distance: distance || 0,
+                duration: duration || 0
+            };
+        }
+
+        function showPreview(stats) {
+            if (stats.distance > 0) {
+                previewStats.style.display = 'block';
+                document.getElementById('previewDistance').textContent = stats.distance.toFixed(2) + ' mi';
+                
+                if (stats.duration > 0) {
+                    const min = Math.floor(stats.duration);
+                    const sec = Math.round((stats.duration - min) * 60);
+                    document.getElementById('previewDuration').textContent = `${min}:${sec.toString().padStart(2, '0')}`;
+                    
+                    const pace = stats.duration / stats.distance;
+                    const paceMin = Math.floor(pace);
+                    const paceSec = Math.round((pace - paceMin) * 60);
+                    document.getElementById('previewPace').textContent = `${paceMin}:${paceSec.toString().padStart(2, '0')}/mi`;
+                } else {
+                    document.getElementById('previewDuration').textContent = '--';
+                    document.getElementById('previewPace').textContent = '--';
+                }
+                
+                // Auto-fill current distance
+                if (!oldDistanceInput.value) {
+                    oldDistanceInput.value = stats.distance.toFixed(2);
+                }
+            }
+        }
+
+        // Fix button
+        fixBtn.addEventListener('click', async () => {
+            if (!currentFile) {
+                showStatus('Please select a file first', 'error');
+                return;
+            }
+
+            const oldDist = parseFloat(oldDistanceInput.value);
+            const newDist = parseFloat(newDistanceInput.value);
+
+            if (!oldDist || !newDist) {
+                showStatus('Please enter both distances', 'error');
+                return;
+            }
+
+            if (oldDist <= 0 || newDist <= 0) {
+                showStatus('Distances must be greater than 0', 'error');
+                return;
+            }
+
+            fixBtn.disabled = true;
+            fixBtn.textContent = 'Processing...';
+
+            try {
+                const arrayBuffer = await currentFile.arrayBuffer();
+                const modifiedData = modifyFitDistance(arrayBuffer, oldDist, newDist);
+                
+                // Download
+                const blob = new Blob([modifiedData], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = currentFile.name.replace('.fit', '_fixed.fit');
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showStatus('✓ File fixed and downloaded! Now delete the original activity on Strava and upload this fixed file.', 'success');
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                fixBtn.disabled = false;
+                fixBtn.textContent = 'Fix Distance';
+            }
+        });
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = 'status show ' + type;
+        }
+
+        function hideStatus() {
+            status.classList.remove('show');
+        }
+
+        function modifyFitDistance(arrayBuffer, oldDistMiles, newDistMiles) {
+            const data = new Uint8Array(arrayBuffer);
+            const view = new DataView(arrayBuffer);
+            
+            const headerSize = data[0];
+            
+            // Conversions
+            const conversions = {
+                cm: Math.round(oldDistMiles * 160934.4),
+                m: Math.round(oldDistMiles * 1609.344),
+                m100: Math.round(oldDistMiles * 1609.344 * 100),
+                hm: Math.round(oldDistMiles * 1609.344 / 100),
+                km10: Math.round(oldDistMiles * 1.609344 * 10),
+                mm: Math.round(oldDistMiles * 1609344)
+            };
+            
+            const newConversions = {
+                cm: Math.round(newDistMiles * 160934.4),
+                m: Math.round(newDistMiles * 1609.344),
+                m100: Math.round(newDistMiles * 1609.344 * 100),
+                hm: Math.round(newDistMiles * 1609.344 / 100),
+                km10: Math.round(newDistMiles * 1.609344 * 10),
+                mm: Math.round(newDistMiles * 1609344)
+            };
+            
+            let replacements = 0;
+            
+            // 32-bit values
+            for (let i = headerSize; i < data.length - 3; i++) {
+                const value32 = view.getUint32(i, true);
+                
+                if (value32 === conversions.cm) {
+                    view.setUint32(i, newConversions.cm, true);
+                    replacements++;
+                } else if (value32 === conversions.m) {
+                    view.setUint32(i, newConversions.m, true);
+                    replacements++;
+                } else if (value32 === conversions.m100) {
+                    view.setUint32(i, newConversions.m100, true);
+                    replacements++;
+                } else if (value32 === conversions.mm) {
+                    view.setUint32(i, newConversions.mm, true);
+                    replacements++;
+                }
+            }
+            
+            // 16-bit values
+            for (let i = headerSize; i < data.length - 1; i++) {
+                const value16 = view.getUint16(i, true);
+                
+                if (value16 === conversions.hm && conversions.hm > 0) {
+                    view.setUint16(i, newConversions.hm, true);
+                    replacements++;
+                } else if (value16 === conversions.km10 && conversions.km10 > 0) {
+                    view.setUint16(i, newConversions.km10, true);
+                    replacements++;
+                }
+            }
+            
+            // Fuzzy matching if needed
+            if (replacements === 0) {
+                const tolerance = 0.05;
+                for (let i = headerSize; i < data.length - 3; i++) {
+                    const value32 = view.getUint32(i, true);
+                    for (const [format, oldValue] of Object.entries(conversions)) {
+                        if (oldValue > 0 && Math.abs(value32 - oldValue) / oldValue < tolerance) {
+                            const ratio = newConversions[format] / oldValue;
+                            view.setUint32(i, Math.round(value32 * ratio), true);
+                            replacements++;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Update CRCs
+            const headerCrc = calculateCrc(data.slice(0, headerSize - 2));
+            view.setUint16(headerSize - 2, headerCrc, true);
+            
+            const dataCrc = calculateCrc(data.slice(headerSize, -2));
+            view.setUint16(data.length - 2, dataCrc, true);
+            
+            if (replacements === 0) {
+                throw new Error(`Could not find distance values. Make sure "${oldDistMiles}" matches what Strava shows.`);
+            }
+            
+            return data;
+        }
+
+        function calculateCrc(data) {
+            const crcTable = [
+                0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
+                0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400
+            ];
+            
+            let crc = 0;
+            for (let i = 0; i < data.length; i++) {
+                const byte = data[i];
+                let tmp = crcTable[crc & 0xF];
+                crc = (crc >> 4) & 0x0FFF;
+                crc = crc ^ tmp ^ crcTable[byte & 0xF];
+                
+                tmp = crcTable[crc & 0xF];
+                crc = (crc >> 4) & 0x0FFF;
+                crc = crc ^ tmp ^ crcTable[(byte >> 4) & 0xF];
+            }
+            
+            return crc;
+        }
+    </script>
+</body>
+</html>
