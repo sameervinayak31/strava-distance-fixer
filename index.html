@@ -50,7 +50,7 @@
         }
 
         .container {
-            max-width: 700px;
+            max-width: 600px;
             margin: 0 auto;
             position: relative;
             z-index: 1;
@@ -73,6 +73,38 @@
         .subtitle {
             color: var(--text-secondary);
             font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .unit-toggle {
+            display: inline-flex;
+            gap: 0.5rem;
+            background: var(--bg-secondary);
+            padding: 0.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .unit-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .unit-btn.active {
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-teal));
+            color: white;
+        }
+
+        .unit-btn:hover:not(.active) {
+            color: var(--text-primary);
         }
 
         .card {
@@ -130,35 +162,6 @@
             font-family: 'Space Mono', monospace;
             font-size: 0.9rem;
             color: var(--accent-orange);
-        }
-
-        .preview-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 1rem;
-            padding: 1.5rem;
-            background: var(--bg-primary);
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-        }
-
-        .stat {
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-secondary);
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            font-family: 'Space Mono', monospace;
-            color: var(--accent-teal);
         }
 
         .input-group {
@@ -250,7 +253,8 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.9rem;
             transition: all 0.3s ease;
-            margin-top: 1rem;
+            width: 100%;
+            text-align: left;
         }
 
         .guide-toggle:hover {
@@ -288,17 +292,9 @@
             line-height: 1.5;
         }
 
-        .footer {
-            text-align: center;
-            margin-top: 2rem;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-        }
-
         @media (max-width: 640px) {
             h1 { font-size: 1.75rem; }
             .card { padding: 1.5rem; }
-            .preview-stats { grid-template-columns: repeat(2, 1fr); }
             input[type="number"] { font-size: 16px; }
         }
     </style>
@@ -308,6 +304,10 @@
         <div class="header">
             <h1>Strava Distance Fixer</h1>
             <p class="subtitle">Fix activity distances for running, cycling & indoor workouts</p>
+            <div class="unit-toggle">
+                <button class="unit-btn active" id="milesBtn">Miles</button>
+                <button class="unit-btn" id="kmBtn">Kilometers</button>
+            </div>
         </div>
 
         <div class="card">
@@ -321,30 +321,13 @@
             <div class="form-section" id="formSection">
                 <div class="file-info" id="fileName"></div>
 
-                <div id="previewStats" style="display: none;">
-                    <div class="preview-stats">
-                        <div class="stat">
-                            <div class="stat-label">Distance</div>
-                            <div class="stat-value" id="previewDistance">--</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label">Duration</div>
-                            <div class="stat-value" id="previewDuration">--</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label">Avg Pace</div>
-                            <div class="stat-value" id="previewPace">--</div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="input-group">
-                    <label>Current Distance (miles)</label>
+                    <label id="oldDistanceLabel">Current Distance (miles)</label>
                     <input type="number" id="oldDistance" step="0.01" min="0" placeholder="2.27">
                 </div>
 
                 <div class="input-group">
-                    <label>Correct Distance (miles)</label>
+                    <label id="newDistanceLabel">Correct Distance (miles)</label>
                     <input type="number" id="newDistance" step="0.01" min="0" placeholder="2.80">
                 </div>
 
@@ -358,38 +341,28 @@
             <div class="guide-content" id="guideContent">
                 <div class="guide-step">
                     <h4>1. Export from Strava</h4>
-                    <p><strong>On Phone:</strong> Open Strava.com in your phone's browser (Safari/Chrome), log in, find your activity, tap the wrench icon 🔧, then "Export Original"<br>
-                    <strong>On Computer:</strong> Strava.com → Activity → Wrench icon 🔧 → Export Original</p>
+                    <p><strong>Mobile:</strong> Strava app → Activity → ⋯ → Export Original<br>
+                    <strong>Desktop:</strong> Strava.com → Activity → 🔧 → Export Original</p>
                 </div>
                 <div class="guide-step">
                     <h4>2. Upload Here</h4>
-                    <p><strong>On Phone:</strong> The .FIT file saves to Downloads. Tap the upload box above, choose "Browse", go to Downloads folder<br>
-                    <strong>On Computer:</strong> Drag and drop the .FIT file or click to browse</p>
+                    <p>Tap the upload box above and select your .FIT file from your phone's Files app or desktop.</p>
                 </div>
                 <div class="guide-step">
-                    <h4>3. Check the Preview</h4>
-                    <p>Verify the distance and duration match what Strava shows to confirm you have the right file.</p>
-                </div>
-                <div class="guide-step">
-                    <h4>4. Enter Distances</h4>
+                    <h4>3. Enter Distances</h4>
                     <p><strong>Current:</strong> What Strava shows (e.g., 2.27)<br>
                     <strong>Correct:</strong> What it should be (e.g., 2.80)</p>
                 </div>
                 <div class="guide-step">
-                    <h4>5. Fix & Download</h4>
+                    <h4>4. Fix & Download</h4>
                     <p>Click "Fix Distance" and the corrected file will download automatically.</p>
                 </div>
                 <div class="guide-step">
-                    <h4>6. Upload to Strava</h4>
-                    <p><strong>IMPORTANT:</strong> First delete the original activity on Strava!<br>
-                    <strong>On Phone:</strong> Open Strava.com in browser (NOT the app), tap Upload button, select the fixed .FIT file from Downloads<br>
-                    <strong>On Computer:</strong> Strava.com → Upload → Select the fixed .FIT file</p>
+                    <h4>5. Upload to Strava</h4>
+                    <p><strong>Important:</strong> Delete the original activity first!<br>
+                    Then: Strava.com → Upload → Select your fixed .FIT file</p>
                 </div>
             </div>
-        </div>
-
-        <div class="footer">
-            Made with ❤️ for athletes • 100% private, nothing uploaded
         </div>
     </div>
 
@@ -400,13 +373,50 @@
         const fileName = document.getElementById('fileName');
         const oldDistanceInput = document.getElementById('oldDistance');
         const newDistanceInput = document.getElementById('newDistance');
+        const oldDistanceLabel = document.getElementById('oldDistanceLabel');
+        const newDistanceLabel = document.getElementById('newDistanceLabel');
         const fixBtn = document.getElementById('fixBtn');
         const status = document.getElementById('status');
         const guideToggle = document.getElementById('guideToggle');
         const guideContent = document.getElementById('guideContent');
-        const previewStats = document.getElementById('previewStats');
+        const milesBtn = document.getElementById('milesBtn');
+        const kmBtn = document.getElementById('kmBtn');
 
         let currentFile = null;
+        let currentUnit = 'miles';
+
+        // Unit toggle
+        milesBtn.addEventListener('click', () => {
+            if (currentUnit !== 'miles') {
+                currentUnit = 'miles';
+                milesBtn.classList.add('active');
+                kmBtn.classList.remove('active');
+                updateLabelsAndPlaceholders();
+            }
+        });
+
+        kmBtn.addEventListener('click', () => {
+            if (currentUnit !== 'km') {
+                currentUnit = 'km';
+                kmBtn.classList.add('active');
+                milesBtn.classList.remove('active');
+                updateLabelsAndPlaceholders();
+            }
+        });
+
+        function updateLabelsAndPlaceholders() {
+            if (currentUnit === 'miles') {
+                oldDistanceLabel.textContent = 'Current Distance (miles)';
+                newDistanceLabel.textContent = 'Correct Distance (miles)';
+                oldDistanceInput.placeholder = '2.27';
+                newDistanceInput.placeholder = '2.80';
+            } else {
+                oldDistanceLabel.textContent = 'Current Distance (km)';
+                newDistanceLabel.textContent = 'Correct Distance (km)';
+                oldDistanceInput.placeholder = '5.0';
+                newDistanceInput.placeholder = '5.5';
+            }
+        }
 
         // Guide toggle
         guideToggle.addEventListener('click', () => {
@@ -442,7 +452,7 @@
             }
         });
 
-        async function handleFile(file) {
+        function handleFile(file) {
             if (!file.name.toLowerCase().endsWith('.fit')) {
                 showStatus('Please select a .FIT file', 'error');
                 return;
@@ -452,77 +462,6 @@
             fileName.textContent = '✓ ' + file.name;
             formSection.classList.add('active');
             hideStatus();
-
-            // Parse and show preview
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const stats = parseFitFile(arrayBuffer);
-                showPreview(stats);
-            } catch (error) {
-                console.error('Preview error:', error);
-            }
-        }
-
-        function parseFitFile(arrayBuffer) {
-            const data = new Uint8Array(arrayBuffer);
-            const view = new DataView(arrayBuffer);
-            const headerSize = data[0];
-            
-            // Find distance (stored as hectometers in most FIT files)
-            let distance = 0;
-            let duration = 0;
-            
-            // Search for likely session summary values
-            for (let i = headerSize; i < data.length - 1; i++) {
-                const hm = view.getUint16(i, true);
-                
-                // Hectometers: realistic run/ride is 1-1000 hm (0.06-62 miles)
-                if (hm >= 1 && hm <= 1000) {
-                    const miles = hm * 100 / 1609.344;
-                    if (miles >= 0.1 && miles <= 100) {
-                        distance = Math.max(distance, miles);
-                    }
-                }
-                
-                // Duration in seconds (look for realistic values)
-                const sec = view.getUint32(i, true);
-                if (sec >= 60 && sec <= 86400) { // 1 min to 24 hours
-                    if (sec / 60 >= 5 && sec / 60 <= 600) { // 5 min to 10 hours
-                        duration = Math.max(duration, sec / 60);
-                    }
-                }
-            }
-            
-            return {
-                distance: distance || 0,
-                duration: duration || 0
-            };
-        }
-
-        function showPreview(stats) {
-            if (stats.distance > 0) {
-                previewStats.style.display = 'block';
-                document.getElementById('previewDistance').textContent = stats.distance.toFixed(2) + ' mi';
-                
-                if (stats.duration > 0) {
-                    const min = Math.floor(stats.duration);
-                    const sec = Math.round((stats.duration - min) * 60);
-                    document.getElementById('previewDuration').textContent = `${min}:${sec.toString().padStart(2, '0')}`;
-                    
-                    const pace = stats.duration / stats.distance;
-                    const paceMin = Math.floor(pace);
-                    const paceSec = Math.round((pace - paceMin) * 60);
-                    document.getElementById('previewPace').textContent = `${paceMin}:${paceSec.toString().padStart(2, '0')}/mi`;
-                } else {
-                    document.getElementById('previewDuration').textContent = '--';
-                    document.getElementById('previewPace').textContent = '--';
-                }
-                
-                // Auto-fill current distance
-                if (!oldDistanceInput.value) {
-                    oldDistanceInput.value = stats.distance.toFixed(2);
-                }
-            }
         }
 
         // Fix button
@@ -545,19 +484,29 @@
                 return;
             }
 
+            // Convert to miles if in km
+            const oldDistMiles = currentUnit === 'km' ? oldDist / 1.60934 : oldDist;
+            const newDistMiles = currentUnit === 'km' ? newDist / 1.60934 : newDist;
+
             fixBtn.disabled = true;
             fixBtn.textContent = 'Processing...';
 
             try {
                 const arrayBuffer = await currentFile.arrayBuffer();
-                const modifiedData = modifyFitDistance(arrayBuffer, oldDist, newDist);
+                const modifiedData = modifyFitDistance(arrayBuffer, oldDistMiles, newDistMiles);
+                
+                // Generate filename with date
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const baseName = currentFile.name.replace('.fit', '');
+                const newFileName = `${baseName}_fixed_${dateStr}.fit`;
                 
                 // Download
                 const blob = new Blob([modifiedData], { type: 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = currentFile.name.replace('.fit', '_fixed.fit');
+                a.download = newFileName;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -664,7 +613,7 @@
             view.setUint16(data.length - 2, dataCrc, true);
             
             if (replacements === 0) {
-                throw new Error(`Could not find distance values. Make sure "${oldDistMiles}" matches what Strava shows.`);
+                throw new Error(`Could not find distance values. Make sure "${oldDistMiles.toFixed(2)}" matches what Strava shows.`);
             }
             
             return data;
